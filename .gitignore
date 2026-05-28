@@ -1,0 +1,11 @@
+node_modules/
+dist/
+vendor/*.js
+vendor/*.mjs
+vendor/*.wasm
+vendor/tessdata/
+!vendor/.gitkeep
+gli-source-docs/*.pdf
+*.zip
+*.crx
+.DS_Store

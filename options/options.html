@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLI Compliance Analyzer - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>GLI Compliance Analyzer Settings</h1>
+      <p class="subtitle">Configure your AI provider and API credentials</p>
+    </header>
+
+    <form id="settings-form">
+      <!-- AI Provider -->
+      <div class="form-group">
+        <label for="ai-provider">AI Provider</label>
+        <select id="ai-provider" name="aiProvider">
+          <option value="openai">OpenAI (GPT-4o)</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
+        </select>
+        <p class="help-text">Select your preferred AI provider for compliance analysis.</p>
+      </div>
+
+      <!-- API Key -->
+      <div class="form-group">
+        <label for="api-key">API Key</label>
+        <div class="input-group">
+          <input type="password" id="api-key" name="apiKey" placeholder="Enter your API key" autocomplete="off">
+          <button type="button" id="toggle-key" class="btn-icon" title="Show/Hide">
+            👁️
+          </button>
+        </div>
+        <p class="help-text">
+          Your API key is stored locally and never sent anywhere except the selected AI provider.
+          <br>
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">Get OpenAI key</a> |
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get Anthropic key</a>
+        </p>
+      </div>
+
+      <!-- Image Settings -->
+      <div class="form-group">
+        <label for="max-image-size">Max Image Dimension (px)</label>
+        <input type="number" id="max-image-size" name="maxImageSize" value="2048" min="512" max="4096" step="256">
+        <p class="help-text">Maximum width/height for images sent to AI. Larger = more detail but higher cost.</p>
+      </div>
+
+      <!-- Compression -->
+      <div class="form-group">
+        <label for="compression-quality">Image Compression Quality</label>
+        <input type="range" id="compression-quality" name="compressionQuality" min="0.5" max="1.0" step="0.05" value="0.85">
+        <span id="quality-value">85%</span>
+        <p class="help-text">JPEG compression quality for uploaded images. Higher = better quality but larger size.</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+        <button type="button" id="test-connection" class="btn btn-secondary">Test Connection</button>
+      </div>
+
+      <!-- Status -->
+      <div id="status-message" class="status-message hidden"></div>
+    </form>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

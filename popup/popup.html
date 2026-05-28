@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLI Compliance Analyzer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-logo">
+        <img src="../assets/icons/logo.svg" alt="RuleGuard" class="logo-icon">
+        <div class="header-text">
+          <h1>RuleGuard</h1>
+          <p class="subtitle">GLI-19 Compliance Analyzer</p>
+        </div>
+      </div>
+      <button id="settings-btn" class="icon-btn" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- ============ VIEW: Game List ============ -->
+    <div id="view-game-list">
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Games</h2>
+        </div>
+
+        <div id="games-list" class="games-list">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div class="new-game-form">
+          <input type="text" id="new-game-input" placeholder="New game name..." class="input-text">
+          <button id="create-game-btn" class="btn btn-primary btn-sm">+ New Game</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ VIEW: Active Game ============ -->
+    <div id="view-active-game" class="hidden">
+      <!-- Game Header -->
+      <div class="game-header">
+        <button id="back-to-list-btn" class="icon-btn" title="Back to games">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h2 class="game-name" id="active-game-name">Game Name</h2>
+        <button id="delete-game-btn" class="icon-btn icon-btn-danger" title="Delete game">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- GLI-19 Badge -->
+      <div class="gli-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>GLI-19 v3.0 loaded</span>
+      </div>
+
+      <!-- Documents Section -->
+      <section class="section">
+        <h3 class="section-title">Documents</h3>
+
+        <div id="docs-list" class="docs-list">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div id="no-docs" class="empty-state empty-state-sm">
+          <p>Upload game rules, PAR sheets, or other references (optional).</p>
+        </div>
+
+        <label class="btn btn-secondary btn-sm btn-upload" for="doc-upload-input">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          Upload PDF / Images
+        </label>
+        <input type="file" id="doc-upload-input" accept=".pdf,.png,.jpg,.jpeg,.webp" multiple hidden>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- Custom Instructions -->
+      <section class="section">
+        <h3 class="section-title">Instructions <span class="optional-tag">optional</span></h3>
+        <textarea id="custom-instructions" class="instructions-input" placeholder="Add context or specific things to check...&#10;&#10;e.g. &quot;Focus on the free spins bonus — check if retrigger rules are clear&quot;" rows="3"></textarea>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- Captures Section -->
+      <section class="section">
+        <h3 class="section-title">Captures</h3>
+
+        <!-- Thumbnails of existing captures -->
+        <div id="captures-grid" class="captures-grid">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div id="no-captures" class="empty-state empty-state-sm">
+          <p>Share your screen and capture help screens, paytables, and game rules.</p>
+        </div>
+
+        <!-- Capture Controls -->
+        <div id="capture-idle" class="capture-controls">
+          <button id="start-capture-btn" class="btn btn-capture">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Start Capture
+          </button>
+        </div>
+
+        <div id="capture-active" class="capture-controls hidden">
+          <div class="capture-recording">
+            <span class="recording-dot"></span>
+            <span class="recording-text">Recording — <span id="frame-count">0</span> frames</span>
+          </div>
+          <div class="capture-preview">
+            <canvas id="capture-preview-canvas" width="180" height="101"></canvas>
+          </div>
+          <div class="capture-actions">
+            <button id="capture-frame-btn" class="btn btn-secondary btn-sm">📸 Capture Frame</button>
+            <button id="stop-capture-btn" class="btn btn-primary btn-sm">⏹ Stop & Save</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- Test Cases (shown after captures exist) -->
+      <section id="test-cases-section" class="section hidden">
+        <h3 class="section-title">Test Cases</h3>
+
+        <div id="test-cases-list" class="test-cases-list">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div id="no-test-cases" class="empty-state empty-state-sm">
+          <p>Add specific checks to evaluate as Pass / Fail / N/A.</p>
+        </div>
+
+        <div class="test-case-add">
+          <input type="text" id="new-test-case-input" class="input-text" placeholder="e.g. RTP percentage is clearly displayed">
+          <button id="add-test-case-btn" class="btn btn-secondary btn-sm">+ Add</button>
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- Analysis Section (shown after captures/docs exist) -->
+      <section id="analysis-section" class="section hidden">
+        <button id="analyze-btn" class="btn btn-primary" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+          Analyze Compliance
+        </button>
+
+        <!-- Progress -->
+        <div id="progress-container" class="progress-container hidden">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-text" id="progress-text">Initializing analysis...</p>
+        </div>
+      </section>
+
+      <!-- Results Section -->
+      <section id="results-section" class="section results-section hidden">
+        <h3 class="section-title">Compliance Report</h3>
+
+        <!-- Score Summary -->
+        <div class="score-summary" id="score-summary">
+          <div class="score-circle">
+            <svg viewBox="0 0 100 100" class="score-svg">
+              <circle cx="50" cy="50" r="45" class="score-bg"/>
+              <circle cx="50" cy="50" r="45" class="score-ring" id="score-ring"/>
+            </svg>
+            <span class="score-value" id="score-value">--</span>
+          </div>
+          <div class="score-details">
+            <div class="score-label">Overall Compliance</div>
+            <div class="issue-counts">
+              <span class="count critical" id="critical-count">0 Critical</span>
+              <span class="count warning" id="warning-count">0 Warnings</span>
+              <span class="count info" id="info-count">0 Info</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Test Case Results -->
+        <div id="test-case-results" class="test-case-results">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Findings List -->
+        <div class="findings-list" id="findings-list"></div>
+
+        <!-- Export -->
+        <div class="export-controls">
+          <button id="export-json-btn" class="btn btn-secondary btn-sm">Export JSON</button>
+          <button id="export-pdf-btn" class="btn btn-secondary btn-sm">Export PDF</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Error Display -->
+    <div id="error-container" class="error-container hidden">
+      <div class="error-icon">⚠️</div>
+      <p class="error-message" id="error-message"></p>
+      <button id="error-dismiss" class="btn btn-text">Dismiss</button>
+    </div>
+  </div>
+
+  <script src="../lib/pdf-worker-loader.js"></script>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
