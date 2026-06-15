@@ -185,6 +185,15 @@ describe('AIComplianceAnalyzer provider response parsing', () => {
     expect(analyzer.geminiHeaders()['x-goog-api-key']).toBe('test-key');
   });
 
+  it('defaults to gemini-2.0-flash but uses a configured model', () => {
+    const { AIComplianceAnalyzer } = loadModule('lib/ai-client.js', { fetch: jest.fn() });
+    const defaultAnalyzer = new AIComplianceAnalyzer('k', 'gemini');
+    expect(defaultAnalyzer.geminiUrl()).toContain('models/gemini-2.0-flash:');
+
+    const proAnalyzer = new AIComplianceAnalyzer('k', 'gemini', { geminiModel: 'gemini-2.5-pro' });
+    expect(proAnalyzer.geminiUrl()).toContain('models/gemini-2.5-pro:');
+  });
+
   it('converts a data URL into a Gemini inline_data part', () => {
     const analyzer = analyzerFor('gemini');
     const part = analyzer.geminiInlineImage('data:image/jpeg;base64,QUJD');
