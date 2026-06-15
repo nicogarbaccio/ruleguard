@@ -79,10 +79,19 @@ class OptionsController {
     this.toggleKeyBtn.textContent = isPassword ? '🙈' : '👁️';
   }
 
+  providerLabel(provider) {
+    switch (provider) {
+      case 'openai': return 'OpenAI';
+      case 'anthropic': return 'Anthropic';
+      case 'gemini': return 'Google Gemini';
+      default: return provider;
+    }
+  }
+
   async testConnection() {
     const apiKey = this.apiKeyInput.value.trim();
     const provider = this.providerSelect.value;
-    const providerLabel = provider === 'openai' ? 'OpenAI' : 'Anthropic';
+    const providerLabel = this.providerLabel(provider);
 
     if (!apiKey) {
       this.showStatus('Please enter an API key first.', 'error');
@@ -108,6 +117,21 @@ class OptionsController {
         response = await fetch('https://api.openai.com/v1/models', {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
+      } else if (provider === 'gemini') {
+        response = await fetch(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey
+            },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: 'test' }] }],
+              generationConfig: { maxOutputTokens: 1 }
+            })
+          }
+        );
       } else {
         response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -147,18 +171,27 @@ class OptionsController {
 
   /**
    * Returns a warning message if the API key's prefix doesn't match the
-   * selected provider, otherwise null. Anthropic keys start with "sk-ant-";
-   * OpenAI keys start with "sk-" (but never "sk-ant-").
+   * selected provider, otherwise null.
+   *   - Anthropic keys start with "sk-ant-"
+   *   - OpenAI keys start with "sk-" (but never "sk-ant-")
+   *   - Gemini (Google AI Studio) keys start with "AIza"
    */
   detectKeyProviderMismatch(apiKey, provider) {
     const isAnthropicKey = apiKey.startsWith('sk-ant-');
     const isOpenAIKey = apiKey.startsWith('sk-') && !isAnthropicKey;
+    const isGeminiKey = apiKey.startsWith('AIza');
 
-    if (provider === 'openai' && isAnthropicKey) {
-      return 'This looks like an Anthropic key (sk-ant-…) but the provider is set to OpenAI. Switch the provider to Anthropic, or use an OpenAI key.';
+    if (provider === 'openai' && (isAnthropicKey || isGeminiKey)) {
+      const looksLike = isAnthropicKey ? 'an Anthropic key (sk-ant-…)' : 'a Google Gemini key (AIza…)';
+      return `This looks like ${looksLike} but the provider is set to OpenAI. Switch the provider to match, or use an OpenAI key.`;
     }
-    if (provider === 'anthropic' && isOpenAIKey) {
-      return 'This looks like an OpenAI key but the provider is set to Anthropic. Switch the provider to OpenAI, or use an Anthropic key.';
+    if (provider === 'anthropic' && (isOpenAIKey || isGeminiKey)) {
+      const looksLike = isGeminiKey ? 'a Google Gemini key (AIza…)' : 'an OpenAI key';
+      return `This looks like ${looksLike} but the provider is set to Anthropic. Switch the provider to match, or use an Anthropic key.`;
+    }
+    if (provider === 'gemini' && (isAnthropicKey || isOpenAIKey)) {
+      const looksLike = isAnthropicKey ? 'an Anthropic key (sk-ant-…)' : 'an OpenAI key (sk-…)';
+      return `This looks like ${looksLike} but the provider is set to Google Gemini. Switch the provider to match, or use a Gemini key.`;
     }
     return null;
   }
