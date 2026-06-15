@@ -144,3 +144,50 @@ describe('AIComplianceAnalyzer.fetchWithRetry', () => {
     await expect(analyzer.fetchWithRetry(URL, OPTIONS)).rejects.toThrow(/Internal Server Error/);
   });
 });
+
+describe('AIComplianceAnalyzer provider response parsing', () => {
+  function analyzerFor(provider) {
+    const { AIComplianceAnalyzer } = loadModule('lib/ai-client.js', { fetch: jest.fn() });
+    return new AIComplianceAnalyzer('test-key', provider);
+  }
+
+  it('extracts content from a Gemini response shape', () => {
+    const analyzer = analyzerFor('gemini');
+    const response = {
+      candidates: [{ content: { parts: [{ text: 'hello ' }, { text: 'world' }] } }]
+    };
+    expect(analyzer.extractContent(response)).toBe('hello world');
+  });
+
+  it('extracts content from an OpenAI response shape', () => {
+    const analyzer = analyzerFor('openai');
+    expect(analyzer.extractContent({ choices: [{ message: { content: 'hi' } }] })).toBe('hi');
+  });
+
+  it('extracts content from an Anthropic response shape', () => {
+    const analyzer = analyzerFor('anthropic');
+    expect(analyzer.extractContent({ content: [{ text: 'hi' }] })).toBe('hi');
+  });
+
+  it('parses findings from a Gemini JSON response', () => {
+    const analyzer = analyzerFor('gemini');
+    const findings = [{ severity: 'info', category: 'X', description: 'd', gliReference: 'r', recommendation: 'r' }];
+    const response = {
+      candidates: [{ content: { parts: [{ text: '```json\n' + JSON.stringify({ findings }) + '\n```' }] } }]
+    };
+    expect(analyzer.parseFindings(response)).toEqual(findings);
+  });
+
+  it('builds the Gemini generateContent URL and api-key header', () => {
+    const analyzer = analyzerFor('gemini');
+    expect(analyzer.geminiUrl()).toContain('generativelanguage.googleapis.com');
+    expect(analyzer.geminiUrl()).toContain(':generateContent');
+    expect(analyzer.geminiHeaders()['x-goog-api-key']).toBe('test-key');
+  });
+
+  it('converts a data URL into a Gemini inline_data part', () => {
+    const analyzer = analyzerFor('gemini');
+    const part = analyzer.geminiInlineImage('data:image/jpeg;base64,QUJD');
+    expect(part).toEqual({ inline_data: { mime_type: 'image/jpeg', data: 'QUJD' } });
+  });
+});

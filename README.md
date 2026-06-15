@@ -7,7 +7,7 @@ A Chrome extension that analyzes slot game help screens, game rules, and artwork
 - **Image Analysis**: Upload help screen images for AI-powered compliance review
 - **PDF Processing**: Parse game rules PDFs and check against GLI standards
 - **OCR Text Extraction**: Automatically extract text from images using Tesseract.js
-- **AI-Powered Analysis**: Uses OpenAI GPT-4o or Anthropic Claude for intelligent compliance checking
+- **AI-Powered Analysis**: Uses OpenAI GPT-4o, Anthropic Claude, or Google Gemini for intelligent compliance checking
 - **Rule-Based Checks**: Built-in detection for common compliance issues (missing RTP, malfunction clause, etc.)
 - **Structured Reports**: Generate compliance reports with severity-coded findings
 - **Export Options**: Export reports as JSON or PDF
@@ -103,7 +103,7 @@ The analyzer checks for:
 
 Open the extension settings (gear icon) to configure:
 
-- **AI Provider**: Choose between OpenAI (GPT-4o) or Anthropic (Claude 3.5 Sonnet)
+- **AI Provider**: Choose between OpenAI (GPT-4o), Anthropic (Claude 3.5 Sonnet), or Google Gemini (2.0 Flash, free tier)
 - **API Key**: Your provider API key (stored locally, never shared)
 - **Image Settings**: Max dimension and compression quality
 
