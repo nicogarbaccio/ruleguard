@@ -8,6 +8,8 @@ class OptionsController {
     this.form = document.getElementById('settings-form');
     this.apiKeyInput = document.getElementById('api-key');
     this.providerSelect = document.getElementById('ai-provider');
+    this.geminiModelGroup = document.getElementById('gemini-model-group');
+    this.geminiModelSelect = document.getElementById('gemini-model');
     this.maxImageSize = document.getElementById('max-image-size');
     this.compressionQuality = document.getElementById('compression-quality');
     this.qualityValue = document.getElementById('quality-value');
@@ -27,26 +29,39 @@ class OptionsController {
     this.form.addEventListener('submit', (e) => this.saveSettings(e));
     this.toggleKeyBtn.addEventListener('click', () => this.toggleKeyVisibility());
     this.testBtn.addEventListener('click', () => this.testConnection());
+    this.providerSelect.addEventListener('change', () => this.updateProviderUI());
     this.compressionQuality.addEventListener('input', () => {
       this.qualityValue.textContent = `${Math.round(this.compressionQuality.value * 100)}%`;
     });
+  }
+
+  /**
+   * Show the Gemini model selector only when Gemini is the active provider.
+   */
+  updateProviderUI() {
+    const isGemini = this.providerSelect.value === 'gemini';
+    this.geminiModelGroup.classList.toggle('hidden', !isGemini);
   }
 
   async loadSettings() {
     const settings = await chrome.storage.local.get([
       'apiKey',
       'aiProvider',
+      'geminiModel',
       'maxImageSize',
       'compressionQuality'
     ]);
 
     if (settings.apiKey) this.apiKeyInput.value = settings.apiKey;
     if (settings.aiProvider) this.providerSelect.value = settings.aiProvider;
+    if (settings.geminiModel) this.geminiModelSelect.value = settings.geminiModel;
     if (settings.maxImageSize) this.maxImageSize.value = settings.maxImageSize;
     if (settings.compressionQuality) {
       this.compressionQuality.value = settings.compressionQuality;
       this.qualityValue.textContent = `${Math.round(settings.compressionQuality * 100)}%`;
     }
+
+    this.updateProviderUI();
   }
 
   async saveSettings(event) {
@@ -55,6 +70,7 @@ class OptionsController {
     const settings = {
       apiKey: this.apiKeyInput.value.trim(),
       aiProvider: this.providerSelect.value,
+      geminiModel: this.geminiModelSelect.value,
       maxImageSize: parseInt(this.maxImageSize.value, 10),
       compressionQuality: parseFloat(this.compressionQuality.value)
     };

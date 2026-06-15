@@ -499,7 +499,7 @@ class PopupController {
   // --- Analysis ---
 
   async runAnalysis() {
-    const { apiKey, aiProvider } = await chrome.storage.local.get(['apiKey', 'aiProvider']);
+    const { apiKey, aiProvider, geminiModel } = await chrome.storage.local.get(['apiKey', 'aiProvider', 'geminiModel']);
 
     if (!apiKey) {
       this.showError('Please configure your API key in settings.');
@@ -520,7 +520,7 @@ class PopupController {
       this.showProgress();
       this.resultsSection.classList.add('hidden');
 
-      const analyzer = new AIComplianceAnalyzer(apiKey, aiProvider || 'openai');
+      const analyzer = new AIComplianceAnalyzer(apiKey, aiProvider || 'openai', { geminiModel });
       const complianceChecker = new ComplianceChecker();
       let allFindings = [];
 

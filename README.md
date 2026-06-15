@@ -103,7 +103,8 @@ The analyzer checks for:
 
 Open the extension settings (gear icon) to configure:
 
-- **AI Provider**: Choose between OpenAI (GPT-4o), Anthropic (Claude 3.5 Sonnet), or Google Gemini (2.0 Flash, free tier)
+- **AI Provider**: Choose between OpenAI (GPT-4o), Anthropic (Claude 3.5 Sonnet), or Google Gemini
+- **Gemini Model**: When using Gemini, pick the model (2.0 Flash for speed/free tier, 2.5 Pro for deeper analysis). Note: API rate limits are set per Google Cloud project by enabling billing, not by the key or a consumer "Google AI Pro" subscription.
 - **API Key**: Your provider API key (stored locally, never shared)
 - **Image Settings**: Max dimension and compression quality
 
