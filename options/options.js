@@ -114,7 +114,10 @@ class OptionsController {
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01'
+            'anthropic-version': '2023-06-01',
+            // Required for direct browser/extension-origin calls, otherwise
+            // Anthropic rejects the request (often as a misleading 401).
+            'anthropic-dangerous-direct-browser-access': 'true'
           },
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
