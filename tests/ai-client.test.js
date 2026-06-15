@@ -191,3 +191,34 @@ describe('AIComplianceAnalyzer provider response parsing', () => {
     expect(part).toEqual({ inline_data: { mime_type: 'image/jpeg', data: 'QUJD' } });
   });
 });
+
+describe('AIComplianceAnalyzer.getRateLimitWait', () => {
+  function analyzerFor(provider = 'gemini') {
+    const { AIComplianceAnalyzer } = loadModule('lib/ai-client.js', { fetch: jest.fn() });
+    const analyzer = new AIComplianceAnalyzer('test-key', provider);
+    analyzer.retryDelay = 1000;
+    return analyzer;
+  }
+
+  it('honors the Retry-After header when present', async () => {
+    const analyzer = analyzerFor();
+    const resp = mockResponse({ status: 429, headers: { 'retry-after': '12' } });
+    await expect(analyzer.getRateLimitWait(resp, 0)).resolves.toBe(12000);
+  });
+
+  it("parses Gemini's retryDelay from the error body", async () => {
+    const analyzer = analyzerFor();
+    const resp = mockResponse({
+      status: 429,
+      body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', details: [{ retryDelay: '37s' }] } }
+    });
+    // mockResponse has no clone(); getRateLimitWait falls back to the response itself.
+    await expect(analyzer.getRateLimitWait(resp, 0)).resolves.toBe(37000);
+  });
+
+  it('falls back to at least a 5s backoff when no hint is provided', async () => {
+    const analyzer = analyzerFor();
+    const resp = mockResponse({ status: 429, body: { error: { message: 'slow down' } } });
+    await expect(analyzer.getRateLimitWait(resp, 0)).resolves.toBeGreaterThanOrEqual(5000);
+  });
+});
