@@ -12,10 +12,8 @@ import { Storage } from '../lib/storage.js';
 class PopupController {
   constructor() {
     this.storage = new Storage();
-    this.screenCapture = new ScreenCapture();
     this.activeGame = null;
     this.analysisResults = null;
-    this.previewInterval = null;
 
     this.init();
   }
@@ -45,12 +43,7 @@ class PopupController {
     this.capturesGrid = document.getElementById('captures-grid');
     this.noCapturesEl = document.getElementById('no-captures');
     this.startCaptureBtn = document.getElementById('start-capture-btn');
-    this.stopCaptureBtn = document.getElementById('stop-capture-btn');
-    this.captureFrameBtn = document.getElementById('capture-frame-btn');
     this.captureIdle = document.getElementById('capture-idle');
-    this.captureActive = document.getElementById('capture-active');
-    this.frameCountEl = document.getElementById('frame-count');
-    this.previewCanvas = document.getElementById('capture-preview-canvas');
 
     // Documents
     this.docsList = document.getElementById('docs-list');
@@ -106,8 +99,6 @@ class PopupController {
 
     // Capture
     this.startCaptureBtn.addEventListener('click', () => this.startScreenCapture());
-    this.stopCaptureBtn.addEventListener('click', () => this.stopAndSave());
-    this.captureFrameBtn.addEventListener('click', () => this.captureFrame());
 
     // Documents
     this.docUploadInput.addEventListener('change', (e) => this.handleDocUpload(e));
@@ -131,6 +122,17 @@ class PopupController {
     // Global
     this.settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
     this.errorDismiss.addEventListener('click', () => this.hideError());
+
+    // Refresh captures when the standalone capture window saves frames
+    // (only fires if this popup happens to still be open, e.g. on a second
+    // monitor). On a normal reopen, openGame() reloads frames anyway.
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message?.type === 'FRAMES_SAVED' &&
+          this.activeGame &&
+          message.gameId === this.activeGame.id) {
+        this.renderCaptures();
+      }
+    });
   }
 
   // --- Initial Load ---
@@ -314,6 +316,8 @@ class PopupController {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
 
+    const failures = [];
+
     for (const file of files) {
       let content = '';
       let type = 'image';
@@ -325,13 +329,28 @@ class PopupController {
           const { PDFProcessor } = await import('../lib/pdf-processor.js');
           const processor = new PDFProcessor();
           content = await processor.extractText(file);
+          if (!content || !content.trim()) {
+            throw new Error('No text could be extracted (the PDF may be scanned/image-only).');
+          }
         } catch (e) {
-          // Fallback: store as base64
+          // Do NOT silently store binary as "pdf" text — that produces a
+          // confusing failure later when it's sent to the text API.
+          console.error(`PDF extraction failed for "${file.name}":`, e);
+          failures.push(`${file.name}: ${e.message || 'PDF text extraction failed.'}`);
+          continue;
+        }
+      } else if (file.type.startsWith('image/')) {
+        // Image — store as base64
+        try {
           content = await this.fileToBase64(file);
+        } catch (e) {
+          console.error(`Failed to read image "${file.name}":`, e);
+          failures.push(`${file.name}: could not read image file.`);
+          continue;
         }
       } else {
-        // Image — store as base64
-        content = await this.fileToBase64(file);
+        failures.push(`${file.name}: unsupported file type (${file.type || 'unknown'}). Upload a PDF or image.`);
+        continue;
       }
 
       await this.storage.saveDocument(this.activeGame.id, {
@@ -345,6 +364,10 @@ class PopupController {
     // Reset input so same file can be re-uploaded
     event.target.value = '';
     await this.renderDocuments();
+
+    if (failures.length > 0) {
+      this.showError(`Some files couldn't be added:\n${failures.join('\n')}`);
+    }
   }
 
   fileToBase64(file) {
@@ -437,79 +460,40 @@ class PopupController {
 
   // --- Screen Capture ---
 
+  /**
+   * Open the capture flow in a dedicated extension window.
+   *
+   * The action popup is torn down by Chrome the instant it loses focus, which
+   * previously killed the capture session as soon as the user clicked the game
+   * they were capturing. A standalone window survives focus changes.
+   */
   async startScreenCapture() {
+    if (!this.activeGame) return;
+
     if (!ScreenCapture.isSupported()) {
       this.showError('Screen capture is not supported in this browser.');
       return;
     }
 
-    const started = await this.screenCapture.start();
-    if (!started) return;
+    const params = new URLSearchParams({
+      gameId: this.activeGame.id,
+      gameName: this.activeGame.name
+    });
+    const url = chrome.runtime.getURL(`capture/capture.html?${params.toString()}`);
 
-    this.captureIdle.classList.add('hidden');
-    this.captureActive.classList.remove('hidden');
-    this.frameCountEl.textContent = '0';
-
-    this.previewInterval = setInterval(() => this.updatePreview(), 500);
-
-    // Auto-detect when user stops sharing
-    const checkStream = setInterval(() => {
-      if (!this.screenCapture.isCapturing) {
-        clearInterval(checkStream);
-        if (this.screenCapture.frameCount > 0) {
-          this.stopAndSave();
-        } else {
-          this.resetCaptureUI();
-        }
-      }
-    }, 500);
-  }
-
-  captureFrame() {
-    const dataUrl = this.screenCapture.captureFrame();
-    if (dataUrl) {
-      this.frameCountEl.textContent = this.screenCapture.frameCount;
-      this.updatePreview();
+    try {
+      await chrome.windows.create({
+        url,
+        type: 'popup',
+        width: 460,
+        height: 560
+      });
+      // The popup will likely close now that focus moved to the new window.
+      // Frames are persisted by the capture window and picked up via the
+      // FRAMES_SAVED message / on next popup open.
+    } catch (e) {
+      this.showError(`Could not open the capture window: ${e.message}`);
     }
-  }
-
-  updatePreview() {
-    if (!this.screenCapture.isCapturing) return;
-
-    const thumbnail = this.screenCapture.getThumbnail(180);
-    if (thumbnail) {
-      const ctx = this.previewCanvas.getContext('2d');
-      const img = new Image();
-      img.onload = () => {
-        this.previewCanvas.height = Math.round(180 * (img.height / img.width));
-        ctx.drawImage(img, 0, 0, this.previewCanvas.width, this.previewCanvas.height);
-      };
-      img.src = thumbnail;
-    }
-  }
-
-  async stopAndSave() {
-    clearInterval(this.previewInterval);
-    const frames = this.screenCapture.stop();
-
-    if (frames.length === 0) {
-      this.showError('No frames captured. Click "Capture Frame" while sharing your screen.');
-      this.resetCaptureUI();
-      return;
-    }
-
-    // Save frames to storage
-    await this.storage.saveFrames(this.activeGame.id, frames);
-    await this.storage.updateGame(this.activeGame.id, { frameCount: frames.length });
-
-    this.resetCaptureUI();
-    await this.renderCaptures();
-  }
-
-  resetCaptureUI() {
-    this.captureIdle.classList.remove('hidden');
-    this.captureActive.classList.add('hidden');
-    clearInterval(this.previewInterval);
   }
 
   // --- Analysis ---

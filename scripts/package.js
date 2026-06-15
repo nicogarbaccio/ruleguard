@@ -16,6 +16,7 @@ const PACKAGE_NAME = 'gli-compliance-analyzer';
 const includes = [
   'manifest.json',
   'popup/',
+  'capture/',
   'background/',
   'content/',
   'lib/',

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RuleGuard — Screen Capture</title>
+  <link rel="stylesheet" href="capture.css" />
+</head>
+<body>
+  <div class="capture-window">
+    <header class="capture-header">
+      <h1 class="capture-title">Screen Capture</h1>
+      <p class="capture-subtitle" id="game-label">—</p>
+    </header>
+
+    <!-- Idle: not yet sharing -->
+    <section id="idle" class="panel">
+      <p class="hint">
+        Click <strong>Start Sharing</strong> and pick the screen, window, or tab
+        with the game. This window stays open while you capture, so you can click
+        around the game freely.
+      </p>
+      <button id="start-btn" class="btn btn-primary btn-lg">▶ Start Sharing</button>
+    </section>
+
+    <!-- Active: sharing in progress -->
+    <section id="active" class="panel hidden">
+      <div class="recording">
+        <span class="recording-dot"></span>
+        <span>Recording — <span id="frame-count">0</span> frame(s) captured</span>
+      </div>
+
+      <div class="preview">
+        <canvas id="preview-canvas" width="320" height="180"></canvas>
+      </div>
+
+      <div class="actions">
+        <button id="capture-btn" class="btn btn-secondary">📸 Capture Frame</button>
+        <button id="stop-btn" class="btn btn-primary">⏹ Stop &amp; Save</button>
+      </div>
+      <p class="hint hint-sm">
+        Switch to the game, set up the screen you want, then come back and click
+        Capture Frame. Repeat as needed. Closing this window also saves your frames.
+      </p>
+    </section>
+
+    <!-- Error -->
+    <div id="error" class="error hidden">
+      <span class="error-icon">⚠️</span>
+      <span id="error-text"></span>
+    </div>
+  </div>
+
+  <script src="capture.js" type="module"></script>
+</body>
+</html>
