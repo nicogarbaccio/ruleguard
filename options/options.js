@@ -82,9 +82,19 @@ class OptionsController {
   async testConnection() {
     const apiKey = this.apiKeyInput.value.trim();
     const provider = this.providerSelect.value;
+    const providerLabel = provider === 'openai' ? 'OpenAI' : 'Anthropic';
 
     if (!apiKey) {
       this.showStatus('Please enter an API key first.', 'error');
+      return;
+    }
+
+    // Catch the most common mistake: a key that doesn't match the selected
+    // provider (e.g. an OpenAI key while the provider is set to Anthropic),
+    // which the API would otherwise reject with a confusing 401.
+    const mismatch = this.detectKeyProviderMismatch(apiKey, provider);
+    if (mismatch) {
+      this.showStatus(mismatch, 'error');
       return;
     }
 
@@ -115,18 +125,39 @@ class OptionsController {
       }
 
       if (response.ok || response.status === 200) {
-        this.showStatus('Connection successful! API key is valid.', 'success');
+        this.showStatus(`Connection successful! Your ${providerLabel} API key is valid.`, 'success');
       } else if (response.status === 401) {
-        this.showStatus('Invalid API key. Please check and try again.', 'error');
+        this.showStatus(
+          `${providerLabel} rejected this key (401). Make sure the "AI Provider" dropdown matches the key you entered.`,
+          'error'
+        );
       } else {
-        this.showStatus(`Connection test returned status ${response.status}. Key may still be valid.`, 'error');
+        this.showStatus(`${providerLabel} connection test returned status ${response.status}. Key may still be valid.`, 'error');
       }
     } catch (error) {
-      this.showStatus(`Connection failed: ${error.message}`, 'error');
+      this.showStatus(`Connection to ${providerLabel} failed: ${error.message}`, 'error');
     } finally {
       this.testBtn.disabled = false;
       this.testBtn.textContent = 'Test Connection';
     }
+  }
+
+  /**
+   * Returns a warning message if the API key's prefix doesn't match the
+   * selected provider, otherwise null. Anthropic keys start with "sk-ant-";
+   * OpenAI keys start with "sk-" (but never "sk-ant-").
+   */
+  detectKeyProviderMismatch(apiKey, provider) {
+    const isAnthropicKey = apiKey.startsWith('sk-ant-');
+    const isOpenAIKey = apiKey.startsWith('sk-') && !isAnthropicKey;
+
+    if (provider === 'openai' && isAnthropicKey) {
+      return 'This looks like an Anthropic key (sk-ant-…) but the provider is set to OpenAI. Switch the provider to Anthropic, or use an OpenAI key.';
+    }
+    if (provider === 'anthropic' && isOpenAIKey) {
+      return 'This looks like an OpenAI key but the provider is set to Anthropic. Switch the provider to OpenAI, or use an Anthropic key.';
+    }
+    return null;
   }
 
   showStatus(message, type) {
