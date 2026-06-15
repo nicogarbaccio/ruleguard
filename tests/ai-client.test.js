@@ -231,3 +231,49 @@ describe('AIComplianceAnalyzer.getRateLimitWait', () => {
     await expect(analyzer.getRateLimitWait(resp, 0)).resolves.toBeGreaterThanOrEqual(5000);
   });
 });
+
+describe('AIComplianceAnalyzer 429 detail surfacing', () => {
+  const URL2 = 'https://generativelanguage.googleapis.com/v1beta/models/x:generateContent';
+
+  function geminiAnalyzer(fetchMock) {
+    const { AIComplianceAnalyzer } = loadModule('lib/ai-client.js', { fetch: fetchMock });
+    const a = new AIComplianceAnalyzer('k', 'gemini');
+    a.retryDelay = 0;
+    return a;
+  }
+
+  it("surfaces Gemini's quota message instead of a generic string", async () => {
+    const body = { error: { code: 429, message: 'Quota exceeded for metric: generate_content_free_tier_requests' } };
+    const fetchMock = jest.fn().mockResolvedValue(mockResponse({ status: 429, body }));
+    const analyzer = geminiAnalyzer(fetchMock);
+
+    await expect(analyzer.fetchWithRetry(URL2, { method: 'POST' }))
+      .rejects.toThrow(/Quota exceeded for metric/);
+  });
+
+  it('fails fast (no retries) on a hard quota exhaustion with limit: 0', async () => {
+    const body = {
+      error: {
+        code: 429,
+        message: 'You exceeded your current quota',
+        details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaValue: '0' }] }]
+      }
+    };
+    // Body contains "limit: 0"-style signal via the serialized quotaValue 0.
+    const rawBody = JSON.stringify(body).replace('"quotaValue":"0"', '"limit":0');
+    const fetchMock = jest.fn().mockResolvedValue(mockResponse({ status: 429, body: rawBody }));
+    const analyzer = geminiAnalyzer(fetchMock);
+
+    await expect(analyzer.fetchWithRetry(URL2, { method: 'POST' })).rejects.toThrow(/429/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails fast on a per-day free-tier quota exhaustion', async () => {
+    const body = { error: { code: 429, message: 'free_tier per day limit reached' } };
+    const fetchMock = jest.fn().mockResolvedValue(mockResponse({ status: 429, body }));
+    const analyzer = geminiAnalyzer(fetchMock);
+
+    await expect(analyzer.fetchWithRetry(URL2, { method: 'POST' })).rejects.toThrow(/429/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
