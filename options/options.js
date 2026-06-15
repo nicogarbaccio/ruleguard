@@ -118,18 +118,14 @@ class OptionsController {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
       } else if (provider === 'gemini') {
+        // Validate against ListModels (GET) rather than generateContent.
+        // generateContent consumes the free tier's tight request quota and
+        // can return 429 even for a valid key; listing models does not.
         response = await fetch(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+          'https://generativelanguage.googleapis.com/v1beta/models',
           {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey
-            },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: 'test' }] }],
-              generationConfig: { maxOutputTokens: 1 }
-            })
+            method: 'GET',
+            headers: { 'x-goog-api-key': apiKey }
           }
         );
       } else {
@@ -153,9 +149,14 @@ class OptionsController {
 
       if (response.ok || response.status === 200) {
         this.showStatus(`Connection successful! Your ${providerLabel} API key is valid.`, 'success');
-      } else if (response.status === 401) {
+      } else if (response.status === 401 || response.status === 403) {
         this.showStatus(
-          `${providerLabel} rejected this key (401). Make sure the "AI Provider" dropdown matches the key you entered.`,
+          `${providerLabel} rejected this key (${response.status}). Make sure the "AI Provider" dropdown matches the key you entered.`,
+          'error'
+        );
+      } else if (response.status === 429) {
+        this.showStatus(
+          `${providerLabel} rate limit reached (429). The key is valid but you've hit the quota — wait a moment before running an analysis.`,
           'error'
         );
       } else {
