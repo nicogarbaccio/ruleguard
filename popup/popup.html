@@ -121,20 +121,7 @@
             </svg>
             Start Capture
           </button>
-        </div>
-
-        <div id="capture-active" class="capture-controls hidden">
-          <div class="capture-recording">
-            <span class="recording-dot"></span>
-            <span class="recording-text">Recording — <span id="frame-count">0</span> frames</span>
-          </div>
-          <div class="capture-preview">
-            <canvas id="capture-preview-canvas" width="180" height="101"></canvas>
-          </div>
-          <div class="capture-actions">
-            <button id="capture-frame-btn" class="btn btn-secondary btn-sm">📸 Capture Frame</button>
-            <button id="stop-capture-btn" class="btn btn-primary btn-sm">⏹ Stop & Save</button>
-          </div>
+          <p class="capture-hint">Opens a separate window so you can click around the game while capturing.</p>
         </div>
       </section>
 
@@ -225,6 +212,7 @@
     </div>
   </div>
 
+  <script src="../vendor/pdf.min.js"></script>
   <script src="../lib/pdf-worker-loader.js"></script>
   <script src="popup.js" type="module"></script>
 </body>

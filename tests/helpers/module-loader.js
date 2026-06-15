@@ -11,7 +11,7 @@ const vm = require('vm');
  * Load an ES module file and extract its exports.
  * Handles simple cases of `export class` and `export function`.
  */
-function loadModule(filePath) {
+function loadModule(filePath, contextOverrides = {}) {
   const absolutePath = path.resolve(__dirname, '..', '..', filePath);
   let code = fs.readFileSync(absolutePath, 'utf8');
 
@@ -45,7 +45,13 @@ function loadModule(filePath) {
     fetch: typeof fetch !== 'undefined' ? fetch : async () => {},
     document: { createElement: () => ({ textContent: '', innerHTML: '', getContext: () => ({}) }) },
     Image: class Image { set src(v) { if (this.onload) this.onload(); } },
-    require
+    require,
+    // Source uses `error instanceof TypeError` / name checks — expose the
+    // realm's TypeError so behavior matches the host environment.
+    TypeError,
+    Error,
+    // Allow tests to inject/override globals such as a mock `fetch`.
+    ...contextOverrides
   };
 
   vm.createContext(context);
