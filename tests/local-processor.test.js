@@ -126,6 +126,26 @@ describe('LocalComplianceProcessor', () => {
     });
   });
 
+  describe('analyzeImage OCR failure handling', () => {
+    it('returns an OCR Unavailable finding when the engine cannot load', async () => {
+      const p = makeProcessor();
+      // No global Tesseract and no document in the vm context, so loadTesseract
+      // throws — analyzeImage should convert that into a clear finding.
+      const findings = await p.analyzeImage('data:image/png;base64,QUJD');
+      expect(findings).toHaveLength(1);
+      expect(findings[0].category).toBe('OCR Unavailable');
+      expect(findings[0].severity).toBe('warning');
+    });
+
+    it('uses provided ocrText without invoking OCR', async () => {
+      const p = makeProcessor();
+      const findings = await p.analyzeImage('data:image/png;base64,QUJD', 'The RTP is 96.5%. Return to player disclosed.');
+      const categories = findings.map(f => f.category);
+      expect(categories).not.toContain('OCR Unavailable');
+      expect(categories).not.toContain('RTP Disclosure');
+    });
+  });
+
   describe('evaluateTestCases', () => {
     it('passes a test case whose keywords appear in the docs', async () => {
       const p = makeProcessor();
