@@ -27,6 +27,19 @@
     "content_security_policy": {
         "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
     },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "vendor/tesseract-worker.min.js",
+                "vendor/tesseract.min.js",
+                "vendor/tesseract-core/*",
+                "vendor/tessdata/*"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
     "icons": {
         "16": "assets/icons/icon16.png",
         "48": "assets/icons/icon48.png",
