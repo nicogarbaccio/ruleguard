@@ -79,14 +79,39 @@ export class ReportGenerator {
   }
 
   /**
+   * Resolve the jsPDF constructor.
+   *
+   * jspdf.umd.min.js is a UMD bundle that attaches a `jspdf` namespace to the
+   * global scope when loaded via a classic <script> tag (done in popup.html).
+   * It has no ES named exports, so a dynamic import() does not yield
+   * `{ jsPDF }`. Prefer the global; fall back to import() for non-popup
+   * contexts.
+   */
+  static async loadJsPDF() {
+    const globalScope = typeof window !== 'undefined' ? window : globalThis;
+
+    if (globalScope.jspdf?.jsPDF) return globalScope.jspdf.jsPDF;
+    if (globalScope.jsPDF) return globalScope.jsPDF;
+
+    try {
+      const mod = await import('../vendor/jspdf.umd.min.js');
+      const jsPDF = mod?.jsPDF || mod?.default?.jsPDF || globalScope.jspdf?.jsPDF;
+      if (jsPDF) return jsPDF;
+    } catch {
+      // fall through to a clear error
+    }
+
+    throw new Error('jsPDF library is not available. Ensure vendor/jspdf.umd.min.js is loaded.');
+  }
+
+  /**
    * Export report as a downloadable PDF.
    * Uses jsPDF for PDF generation.
    * @param {Object} report - The report object
    * @returns {Blob} PDF blob
    */
   static async exportPDF(report) {
-    // Dynamically import jsPDF
-    const { jsPDF } = await import('../vendor/jspdf.umd.min.js');
+    const jsPDF = await ReportGenerator.loadJsPDF();
     const doc = new jsPDF();
 
     const margin = 20;

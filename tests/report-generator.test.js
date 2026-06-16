@@ -5,6 +5,23 @@
 const { loadModule } = require('./helpers/module-loader.js');
 const { ReportGenerator } = loadModule('utils/report-generator.js');
 
+describe('ReportGenerator.loadJsPDF', () => {
+  it('resolves jsPDF from the global jspdf namespace (UMD global)', async () => {
+    class FakeJsPDF {}
+    const { ReportGenerator: RG } = loadModule('utils/report-generator.js', {
+      window: { jspdf: { jsPDF: FakeJsPDF } }
+    });
+    await expect(RG.loadJsPDF()).resolves.toBe(FakeJsPDF);
+  });
+
+  it('throws a clear error when jsPDF is unavailable', async () => {
+    const { ReportGenerator: RG } = loadModule('utils/report-generator.js', {
+      window: {}
+    });
+    await expect(RG.loadJsPDF()).rejects.toThrow(/jsPDF library is not available/);
+  });
+});
+
 describe('ReportGenerator', () => {
   const mockComplianceResults = {
     overallScore: 75,
