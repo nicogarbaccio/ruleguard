@@ -77,6 +77,8 @@ class PopupController {
     this.warningCount = document.getElementById('warning-count');
     this.infoCount = document.getElementById('info-count');
     this.findingsList = document.getElementById('findings-list');
+    this.issuesSummary = document.getElementById('issues-summary');
+    this.issuesSummaryList = document.getElementById('issues-summary-list');
     this.exportJsonBtn = document.getElementById('export-json-btn');
     this.exportPdfBtn = document.getElementById('export-pdf-btn');
 
@@ -667,6 +669,8 @@ class PopupController {
       this.findingsList.appendChild(item);
     });
 
+    this.renderIssuesSummary(report);
+
     // Test case results
     this.testCaseResults.innerHTML = '';
     if (report.testCaseResults && report.testCaseResults.length > 0) {
@@ -686,6 +690,49 @@ class PopupController {
         `;
         this.testCaseResults.appendChild(el);
       }
+    }
+  }
+
+  /**
+   * Render a concise summary of issues that need review (critical + warning),
+   * grouping by the GLI rule potentially violated and what to check.
+   */
+  renderIssuesSummary(report) {
+    if (!this.issuesSummary || !this.issuesSummaryList) return;
+
+    const issues = (report.findings || []).filter(
+      f => f.severity === 'critical' || f.severity === 'warning'
+    );
+
+    this.issuesSummaryList.innerHTML = '';
+
+    if (issues.length === 0) {
+      this.issuesSummary.classList.add('hidden');
+      return;
+    }
+
+    this.issuesSummary.classList.remove('hidden');
+
+    // Critical first, then warnings.
+    const order = { critical: 0, warning: 1 };
+    issues.sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
+
+    for (const issue of issues) {
+      const el = document.createElement('div');
+      el.className = `issue-summary-item ${issue.severity}`;
+      const ref = issue.gliReference && issue.gliReference !== 'N/A'
+        ? issue.gliReference
+        : 'No specific reference';
+      el.innerHTML = `
+        <div class="issue-summary-head">
+          <span class="issue-summary-sev ${issue.severity}">${issue.severity.toUpperCase()}</span>
+          <span class="issue-summary-cat">${this.escapeHtml(issue.category)}</span>
+        </div>
+        <div class="issue-summary-rule"><strong>Rule:</strong> ${this.escapeHtml(ref)}</div>
+        <div class="issue-summary-problem"><strong>Issue:</strong> ${this.escapeHtml(issue.description)}</div>
+        <div class="issue-summary-check"><strong>What to check:</strong> ${this.escapeHtml(issue.recommendation || 'Manually review this area against the referenced standard.')}</div>
+      `;
+      this.issuesSummaryList.appendChild(el);
     }
   }
 

@@ -14,11 +14,41 @@ describe('ReportGenerator.loadJsPDF', () => {
     await expect(RG.loadJsPDF()).resolves.toBe(FakeJsPDF);
   });
 
-  it('throws a clear error when jsPDF is unavailable', async () => {
+  it('throws a clear error when jsPDF cannot be loaded', async () => {
+    // Provide a document whose injected script immediately "fails" to load.
+    const el = { dataset: {}, onload: null, onerror: null };
+    const fakeDoc = {
+      querySelector: () => null,
+      createElement: () => el,
+      head: { appendChild: () => { if (el.onerror) el.onerror(); } }
+    };
     const { ReportGenerator: RG } = loadModule('utils/report-generator.js', {
-      window: {}
+      window: {},
+      document: fakeDoc
     });
-    await expect(RG.loadJsPDF()).rejects.toThrow(/jsPDF library is not available/);
+    await expect(RG.loadJsPDF()).rejects.toThrow(/jsPDF could not be loaded/);
+  });
+
+  it('injects the bundled script and resolves jsPDF from the global', async () => {
+    class FakeJsPDF {}
+    const win = {};
+    const el = { dataset: {}, onload: null, onerror: null };
+    const fakeDoc = {
+      querySelector: () => null,
+      createElement: () => el,
+      head: {
+        appendChild: () => {
+          // Simulate the UMD script populating the global, then firing load.
+          win.jspdf = { jsPDF: FakeJsPDF };
+          if (el.onload) el.onload();
+        }
+      }
+    };
+    const { ReportGenerator: RG } = loadModule('utils/report-generator.js', {
+      window: win,
+      document: fakeDoc
+    });
+    await expect(RG.loadJsPDF()).resolves.toBe(FakeJsPDF);
   });
 });
 

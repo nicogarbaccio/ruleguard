@@ -82,26 +82,65 @@ export class ReportGenerator {
    * Resolve the jsPDF constructor.
    *
    * jspdf.umd.min.js is a UMD bundle that attaches a `jspdf` namespace to the
-   * global scope when loaded via a classic <script> tag (done in popup.html).
-   * It has no ES named exports, so a dynamic import() does not yield
-   * `{ jsPDF }`. Prefer the global; fall back to import() for non-popup
-   * contexts.
+   * global scope when loaded via a classic <script> tag. It has no ES named
+   * exports, so a dynamic import() does not yield `{ jsPDF }`.
+   *
+   * We resolve it robustly: prefer an already-loaded global, otherwise inject
+   * the bundled script ourselves (so PDF export does not depend on popup.html
+   * having loaded it first, or on import() semantics).
    */
   static async loadJsPDF() {
     const globalScope = typeof window !== 'undefined' ? window : globalThis;
 
-    if (globalScope.jspdf?.jsPDF) return globalScope.jspdf.jsPDF;
-    if (globalScope.jsPDF) return globalScope.jsPDF;
+    const fromGlobal = () =>
+      globalScope.jspdf?.jsPDF ||
+      (typeof globalScope.jsPDF === 'function' ? globalScope.jsPDF : null);
 
+    if (fromGlobal()) return fromGlobal();
+
+    // Inject the bundled UMD script (extension-local URL).
     try {
-      const mod = await import('../vendor/jspdf.umd.min.js');
-      const jsPDF = mod?.jsPDF || mod?.default?.jsPDF || globalScope.jspdf?.jsPDF;
-      if (jsPDF) return jsPDF;
-    } catch {
-      // fall through to a clear error
+      await ReportGenerator.injectScript('../vendor/jspdf.umd.min.js');
+    } catch (e) {
+      // Try a runtime-resolved URL as a fallback (works from any page depth).
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+          await ReportGenerator.injectScript(chrome.runtime.getURL('vendor/jspdf.umd.min.js'));
+        }
+      } catch {
+        /* fall through */
+      }
     }
 
-    throw new Error('jsPDF library is not available. Ensure vendor/jspdf.umd.min.js is loaded.');
+    if (fromGlobal()) return fromGlobal();
+
+    throw new Error(
+      'jsPDF could not be loaded. Re-run "node scripts/build.js" so vendor/jspdf.umd.min.js exists, then reload the extension.'
+    );
+  }
+
+  /**
+   * Inject a classic <script> and resolve when it loads.
+   */
+  static injectScript(src) {
+    return new Promise((resolve, reject) => {
+      if (typeof document === 'undefined') {
+        reject(new Error('No document available to inject script.'));
+        return;
+      }
+      // Avoid injecting the same script twice.
+      const existing = document.querySelector(`script[data-rg-src="${src}"]`);
+      if (existing) {
+        resolve();
+        return;
+      }
+      const el = document.createElement('script');
+      el.src = src;
+      el.dataset.rgSrc = src;
+      el.onload = () => resolve();
+      el.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(el);
+    });
   }
 
   /**
@@ -149,9 +188,60 @@ export class ReportGenerator {
     doc.text(`Informational: ${report.summary.info}`, margin, y);
     y += 12;
 
+    // Issues Summary — critical + warnings with rule + what to check.
+    const issues = (report.findings || []).filter(
+      f => f.severity === 'critical' || f.severity === 'warning'
+    );
+    if (issues.length > 0) {
+      const order = { critical: 0, warning: 1 };
+      issues.sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));
+
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0);
+      doc.text('Issues to Review', margin, y);
+      y += 8;
+
+      for (const issue of issues) {
+        if (y > 255) { doc.addPage(); y = margin; }
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        const sevColor = issue.severity === 'critical' ? [220, 38, 38] : [234, 88, 12];
+        doc.setTextColor(...sevColor);
+        doc.text(`[${issue.severity.toUpperCase()}] ${issue.category}`, margin, y);
+        y += 5;
+
+        const ref = (issue.gliReference && issue.gliReference !== 'N/A')
+          ? issue.gliReference
+          : 'No specific reference';
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60);
+
+        const ruleLines = doc.splitTextToSize(`Rule: ${ref}`, 170);
+        doc.text(ruleLines, margin, y);
+        y += ruleLines.length * 4 + 1;
+
+        const probLines = doc.splitTextToSize(`Issue: ${issue.description}`, 170);
+        doc.text(probLines, margin, y);
+        y += probLines.length * 4 + 1;
+
+        const checkText = issue.recommendation || 'Manually review this area against the referenced standard.';
+        const checkLines = doc.splitTextToSize(`What to check: ${checkText}`, 170);
+        doc.setTextColor(22, 163, 74);
+        doc.text(checkLines, margin, y);
+        y += checkLines.length * 4 + 5;
+
+        if (y > 270) { doc.addPage(); y = margin; }
+      }
+      y += 2;
+    }
+
     // Findings
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
     doc.text('Findings', margin, y);
     y += 8;
 
