@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "GLI Compliance Analyzer",
     "version": "1.0.0",
-    "description": "Analyze slot game documentation for GLI compliance issues and red flags",
+    "description": "Analyze slot game documentation for GLI compliance issues — locally (no API key) or with optional AI",
     "permissions": [
         "storage",
         "activeTab"

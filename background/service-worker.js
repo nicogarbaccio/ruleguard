@@ -13,6 +13,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       aiProvider: 'openai',
       apiKey: '',
       geminiModel: 'gemini-2.0-flash',
+      processingMode: 'local',
       maxImageSize: 2048,
       compressionQuality: 0.85
     });

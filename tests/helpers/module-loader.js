@@ -32,6 +32,7 @@ function loadModule(filePath, contextOverrides = {}) {
     if (typeof ReportGenerator !== 'undefined') exports.ReportGenerator = ReportGenerator;
     if (typeof ImageProcessor !== 'undefined') exports.ImageProcessor = ImageProcessor;
     if (typeof AIComplianceAnalyzer !== 'undefined') exports.AIComplianceAnalyzer = AIComplianceAnalyzer;
+    if (typeof LocalComplianceProcessor !== 'undefined') exports.LocalComplianceProcessor = LocalComplianceProcessor;
   `;
 
   const context = {

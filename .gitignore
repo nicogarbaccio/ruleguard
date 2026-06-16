@@ -4,6 +4,7 @@ vendor/*.js
 vendor/*.mjs
 vendor/*.wasm
 vendor/tessdata/
+vendor/tesseract-core/
 !vendor/.gitkeep
 gli-source-docs/*.pdf
 *.zip
