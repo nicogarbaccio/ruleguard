@@ -6,6 +6,9 @@
 class OptionsController {
   constructor() {
     this.form = document.getElementById('settings-form');
+    this.processingModeSelect = document.getElementById('processing-mode');
+    this.aiSettings = document.getElementById('ai-settings');
+    this.modeBadge = document.getElementById('mode-badge');
     this.apiKeyInput = document.getElementById('api-key');
     this.providerSelect = document.getElementById('ai-provider');
     this.geminiModelGroup = document.getElementById('gemini-model-group');
@@ -30,9 +33,22 @@ class OptionsController {
     this.toggleKeyBtn.addEventListener('click', () => this.toggleKeyVisibility());
     this.testBtn.addEventListener('click', () => this.testConnection());
     this.providerSelect.addEventListener('change', () => this.updateProviderUI());
+    this.processingModeSelect.addEventListener('change', () => this.updateModeUI());
     this.compressionQuality.addEventListener('input', () => {
       this.qualityValue.textContent = `${Math.round(this.compressionQuality.value * 100)}%`;
     });
+  }
+
+  /**
+   * Show AI-only settings and the "no key needed" badge based on the
+   * selected processing mode.
+   */
+  updateModeUI() {
+    const isLocal = this.processingModeSelect.value === 'local';
+    this.aiSettings.classList.toggle('hidden', isLocal);
+    this.modeBadge.classList.toggle('hidden', !isLocal);
+    // The Test Connection button only makes sense in AI mode.
+    this.testBtn.classList.toggle('hidden', isLocal);
   }
 
   /**
@@ -48,10 +64,12 @@ class OptionsController {
       'apiKey',
       'aiProvider',
       'geminiModel',
+      'processingMode',
       'maxImageSize',
       'compressionQuality'
     ]);
 
+    if (settings.processingMode) this.processingModeSelect.value = settings.processingMode;
     if (settings.apiKey) this.apiKeyInput.value = settings.apiKey;
     if (settings.aiProvider) this.providerSelect.value = settings.aiProvider;
     if (settings.geminiModel) this.geminiModelSelect.value = settings.geminiModel;
@@ -62,6 +80,7 @@ class OptionsController {
     }
 
     this.updateProviderUI();
+    this.updateModeUI();
   }
 
   async saveSettings(event) {
@@ -71,13 +90,14 @@ class OptionsController {
       apiKey: this.apiKeyInput.value.trim(),
       aiProvider: this.providerSelect.value,
       geminiModel: this.geminiModelSelect.value,
+      processingMode: this.processingModeSelect.value,
       maxImageSize: parseInt(this.maxImageSize.value, 10),
       compressionQuality: parseFloat(this.compressionQuality.value)
     };
 
-    // Validate
-    if (!settings.apiKey) {
-      this.showStatus('Please enter an API key.', 'error');
+    // Validate — an API key is only required for AI mode.
+    if (settings.processingMode === 'ai' && !settings.apiKey) {
+      this.showStatus('AI mode needs an API key. Enter one, or switch to Local processing.', 'error');
       return;
     }
 

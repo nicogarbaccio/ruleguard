@@ -1048,3 +1048,21 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gray-400);
 }
+
+/* Processing Mode Indicator */
+.processing-mode-indicator {
+  font-size: 11px;
+  color: #16a34a;
+  background: #dcfce7;
+  border: 1px solid #16a34a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.processing-mode-indicator.mode-ai {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: #2563eb;
+}

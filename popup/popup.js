@@ -3,11 +3,11 @@
  * Game-first flow: select/create a game, capture screens, analyze compliance.
  */
 
-import { AIComplianceAnalyzer } from '../lib/ai-client.js';
 import { ComplianceChecker } from '../utils/compliance-checker.js';
 import { ReportGenerator } from '../utils/report-generator.js';
 import { ScreenCapture } from '../lib/screen-capture.js';
 import { Storage } from '../lib/storage.js';
+import { createProcessor, DEFAULT_PROCESSING_MODE } from '../lib/processor-factory.js';
 
 class PopupController {
   constructor() {
@@ -64,6 +64,7 @@ class PopupController {
     // Analysis
     this.analysisSection = document.getElementById('analysis-section');
     this.analyzeBtn = document.getElementById('analyze-btn');
+    this.processingModeIndicator = document.getElementById('processing-mode-indicator');
     this.progressContainer = document.getElementById('progress-container');
     this.progressFill = document.getElementById('progress-fill');
     this.progressText = document.getElementById('progress-text');
@@ -234,6 +235,9 @@ class PopupController {
 
     // Load test cases
     this.renderTestCases();
+
+    // Reflect the active processing mode
+    await this.updateProcessingModeIndicator();
 
     // Load existing report
     const reportRecord = await this.storage.getReport(game.id);
@@ -498,11 +502,40 @@ class PopupController {
 
   // --- Analysis ---
 
-  async runAnalysis() {
-    const { apiKey, aiProvider, geminiModel } = await chrome.storage.local.get(['apiKey', 'aiProvider', 'geminiModel']);
+  // --- Analysis ---
 
-    if (!apiKey) {
-      this.showError('Please configure your API key in settings.');
+  /**
+   * Show which processing method will run, and a "no API key needed" badge
+   * for local mode.
+   */
+  async updateProcessingModeIndicator() {
+    if (!this.processingModeIndicator) return;
+    const { processingMode, apiKey, aiProvider } = await chrome.storage.local.get(
+      ['processingMode', 'apiKey', 'aiProvider']
+    );
+    const mode = processingMode || DEFAULT_PROCESSING_MODE;
+
+    if (mode === 'local') {
+      this.processingModeIndicator.innerHTML =
+        '🔒 Local processing · <strong>No API key needed</strong> · runs offline';
+      this.processingModeIndicator.classList.remove('mode-ai');
+    } else {
+      const provider = aiProvider || 'openai';
+      const keyNote = apiKey ? '' : ' · ⚠️ no API key set';
+      this.processingModeIndicator.innerHTML =
+        `☁️ AI analysis (${this.escapeHtml(provider)})${keyNote}`;
+      this.processingModeIndicator.classList.add('mode-ai');
+    }
+  }
+
+  async runAnalysis() {
+    const settings = await chrome.storage.local.get([
+      'apiKey', 'aiProvider', 'geminiModel', 'processingMode'
+    ]);
+    const mode = settings.processingMode || DEFAULT_PROCESSING_MODE;
+
+    if (mode === 'ai' && !settings.apiKey) {
+      this.showError('AI mode needs an API key. Add one in Settings, or switch to Local processing (no key needed).');
       return;
     }
 
@@ -516,11 +549,21 @@ class PopupController {
 
     const instructions = this.customInstructions.value.trim();
 
+    let processor;
     try {
       this.showProgress();
       this.resultsSection.classList.add('hidden');
 
-      const analyzer = new AIComplianceAnalyzer(apiKey, aiProvider || 'openai', { geminiModel });
+      const created = createProcessor({
+        processingMode: mode,
+        apiKey: settings.apiKey,
+        aiProvider: settings.aiProvider,
+        geminiModel: settings.geminiModel,
+        standard: 'GLI-19'
+      });
+      processor = created.processor;
+      const desc = processor.describe();
+
       const complianceChecker = new ComplianceChecker();
       let allFindings = [];
 
@@ -532,9 +575,9 @@ class PopupController {
         currentStep++;
         this.updateProgress(
           10 + (currentStep / totalSteps) * 70,
-          `Analyzing frame ${i + 1} of ${frames.length}...`
+          `[${desc.label}] Analyzing frame ${i + 1} of ${frames.length}...`
         );
-        const findings = await analyzer.analyzeImage(frames[i].dataUrl, '', instructions);
+        const findings = await processor.analyzeImage(frames[i].dataUrl, '', instructions);
         allFindings.push(...findings);
       }
 
@@ -543,16 +586,16 @@ class PopupController {
         currentStep++;
         this.updateProgress(
           10 + (currentStep / totalSteps) * 70,
-          `Analyzing document: ${docs[i].name}...`
+          `[${desc.label}] Analyzing document: ${docs[i].name}...`
         );
 
         if (docs[i].type === 'pdf') {
           // PDF — analyze extracted text
-          const findings = await analyzer.analyzeDocument(docs[i].content, instructions);
+          const findings = await processor.analyzeDocument(docs[i].content, instructions);
           allFindings.push(...findings);
         } else {
-          // Image — analyze visually
-          const findings = await analyzer.analyzeImage(docs[i].content, '', instructions);
+          // Image — OCR (local) or visual (AI)
+          const findings = await processor.analyzeImage(docs[i].content, '', instructions);
           allFindings.push(...findings);
         }
       }
@@ -565,12 +608,14 @@ class PopupController {
       const testCases = this.activeGame.testCases || [];
       if (testCases.length > 0) {
         this.updateProgress(88, 'Evaluating test cases...');
-        testCaseResults = await analyzer.evaluateTestCases(testCases, frames, docs);
+        testCaseResults = await processor.evaluateTestCases(testCases, frames, docs);
       }
 
       this.updateProgress(95, 'Generating report...');
       const report = ReportGenerator.createReport(complianceResults);
       report.testCaseResults = testCaseResults;
+      report.processingMode = desc.mode;
+      report.processingLabel = desc.label;
 
       // Save report
       await this.storage.saveReport(this.activeGame.id, report);
@@ -585,6 +630,10 @@ class PopupController {
     } catch (error) {
       this.hideProgress();
       this.showError(`Analysis failed: ${error.message}`);
+    } finally {
+      if (processor && typeof processor.terminate === 'function') {
+        processor.terminate();
+      }
     }
   }
 
@@ -679,7 +728,8 @@ class PopupController {
       const pdfBlob = await ReportGenerator.exportPDF(this.analysisResults);
       this.downloadBlob(pdfBlob, `${this.activeGame.name}-compliance-report.pdf`);
     } catch (error) {
-      this.showError('PDF export failed. Try JSON export instead.');
+      console.error('PDF export failed:', error);
+      this.showError(`PDF export failed: ${error.message}. Try JSON export instead.`);
     }
   }
 

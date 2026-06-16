@@ -10,10 +10,25 @@
   <div class="container">
     <header>
       <h1>GLI Compliance Analyzer Settings</h1>
-      <p class="subtitle">Configure your AI provider and API credentials</p>
+      <p class="subtitle">Choose how analysis runs and configure credentials if needed</p>
     </header>
 
     <form id="settings-form">
+      <!-- Processing Mode -->
+      <div class="form-group">
+        <label for="processing-mode">Processing Mode</label>
+        <select id="processing-mode" name="processingMode">
+          <option value="local">Local processing (no API key needed)</option>
+          <option value="ai">AI analysis (requires API key)</option>
+        </select>
+        <p class="help-text">
+          <span id="mode-badge" class="mode-badge hidden">No API key needed · runs offline</span>
+          <span id="mode-help">Local mode uses PDF.js, on-device OCR (Tesseract.js), and pattern matching. AI mode sends content to your chosen provider for deeper analysis.</span>
+        </p>
+      </div>
+
+      <!-- AI settings (only relevant in AI mode) -->
+      <div id="ai-settings">
       <!-- AI Provider -->
       <div class="form-group">
         <label for="ai-provider">AI Provider</label>
@@ -57,6 +72,7 @@
           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get Gemini key (free)</a>
         </p>
       </div>
+      </div><!-- /#ai-settings -->
 
       <!-- Image Settings -->
       <div class="form-group">
